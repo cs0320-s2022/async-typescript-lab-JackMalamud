@@ -6,14 +6,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Map;
-import java.util.Set;
+import java.lang.reflect.Array;
+import java.util.*;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import freemarker.template.Configuration;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import org.json.JSONException;
+import org.json.JSONObject;
 import spark.*;
 import spark.template.freemarker.FreeMarkerEngine;
 
@@ -80,6 +83,8 @@ public final class Main {
     // Allows requests from any domain (i.e., any URL). This makes development
     // easier, but it’s not a good idea for deployment.
     Spark.before((request, response) -> response.header("Access-Control-Allow-Origin", "*"));
+
+    Spark.post("/results", new ResultsHandler());
   }
 
   /**
@@ -111,13 +116,51 @@ public final class Main {
       // and rising
       // for generating matches
 
+      String reqBody = req.body();
+      JSONObject jsonObject = null;
+      try {
+        jsonObject = new JSONObject(reqBody);
+      } catch (JSONException e) {
+        return null;
+      }
+
       // TODO: use the MatchMaker.makeMatches method to get matches
+      String sun = null;
+      String moon = null;
+      String rising = null;
+      try {
+        sun = jsonObject.getString("sun");
+      } catch (JSONException e) {
+        System.out.println("ERROR: JSONException getting Sun value:\n" + e);
+        return null;
+      }
+      try {
+        moon = jsonObject.getString("moon");
+      } catch (JSONException e) {
+        System.out.println("ERROR: JSONException getting Moon value:\n" + e);
+        return null;
+      }
+      try {
+        rising = jsonObject.getString("rising");
+      } catch (JSONException e) {
+        System.out.println("ERROR: JSONException getting Rising value:\n" + e);
+        return null;
+      }
+
+      List<String> matches = MatchMaker.makeMatches(sun, moon, rising);
 
       // TODO: create an immutable map using the matches
+      HashMap<String, String> matchesMap = new HashMap<>();
+      matchesMap.put("sun", matches.get(0));
+      matchesMap.put("moon", matches.get(1));
+      matchesMap.put("rising", matches.get(2));
+      ImmutableMap<String, String> immutableMap = ImmutableMap.copyOf(matchesMap);
+
 
       // TODO: return a json of the suggestions (HINT: use GSON.toJson())
       Gson GSON = new Gson();
-      return null;
+      String outputJSON = GSON.toJson(immutableMap);
+      return outputJSON;
     }
   }
 }
